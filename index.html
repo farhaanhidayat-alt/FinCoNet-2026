@@ -2641,436 +2641,218 @@
 
 
     <!-- ================= JAVASCRIPT LOGIC ================= -->
-    <script>
+   <script>
+(() => {
+  'use strict';
 
-    const SUB_PAGES = [
-        'day1-page',
-        'day2-page',
-        'day3-page',
-        'tourist-dest-page',
-        'tourist-culinary-page',
-        'tourist-spa-page',
-        'tourist-gift-page'
-    ];
+  const SUB_PAGES = ['day1-page','day2-page','day3-page','tourist-dest-page',
+                     'tourist-culinary-page','tourist-spa-page','tourist-gift-page'];
+  const DESKTOP_MIN = 1200;
+  const $  = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-   /* --- ROUTING & PAGE NAVIGATION UNTUK GITHUB PAGES --- */
-const SUB_PAGES = [
-    'day1-page',
-    'day2-page',
-    'day3-page',
-    'tourist-dest-page',
-    'tourist-culinary-page',
-    'tourist-spa-page',
-    'tourist-gift-page'
-];
+  /* ================= ROUTER (hash-based) ================= */
+  function showView(id) {
+    ['main-view', ...SUB_PAGES].forEach(v => {
+      const el = document.getElementById(v);
+      if (el) el.style.display = (v === id) ? 'block' : 'none';
+    });
+  }
 
-function showPage(pageId, updateUrl = true, scrollToTop = true) {
-    if (typeof closeMegaMenu === "function") closeMegaMenu();
-    
-    const allPages = ['main-view', ...SUB_PAGES];
-    allPages.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.style.display = (id === pageId) ? 'block' : 'none';
-        }
+  function route() {
+    const hash = decodeURIComponent(location.hash.slice(1)) || 'home';
+    closeMenus();
+    if (SUB_PAGES.includes(hash)) {
+      showView(hash);
+      window.scrollTo(0, 0);
+      return;
+    }
+    showView('main-view');
+    const target = hash === 'home' ? null : document.getElementById(hash);
+    requestAnimationFrame(() => target
+      ? target.scrollIntoView({ behavior: 'smooth' })
+      : window.scrollTo(0, 0));
+  }
+
+  function go(id) {
+    if (location.hash === '#' + id) route(); else location.hash = id;
+  }
+
+  // Shim agar onclick lama di HTML tetap jalan
+  window.showPage = go;
+  window.showHome = () => go('home');
+  window.navigateToSection = go;
+  window.addEventListener('hashchange', route);
+
+  /* ================= LANGUAGE ================= */
+  let currentLang = 'en';
+
+  function applyLang(root = document) {
+    $$('.lang', root).forEach(el => {
+      const txt = el.getAttribute('data-' + currentLang);
+      if (txt) el.innerHTML = txt;
+    });
+  }
+
+  function setLanguage(lang) {
+    currentLang = lang === 'id' ? 'id' : 'en';
+    try { localStorage.setItem('lang', currentLang); } catch (_) {}
+    document.documentElement.lang = currentLang;
+    ['btn-', 'mob-btn-'].forEach(p => {
+      ['en', 'id'].forEach(l => {
+        const b = document.getElementById(p + l);
+        if (b) b.classList.toggle('active', l === currentLang);
+      });
+    });
+    applyLang();
+  }
+  window.setLanguage = setLanguage;
+
+  /* ================= NAV & MEGA MENU ================= */
+  const navWrapper   = $('#nav-wrapper');
+  const infoDropdown = $('#infoDropdown');
+  const isDesktop    = () => window.innerWidth > DESKTOP_MIN;
+
+  function closeMenus() {
+    infoDropdown?.classList.remove('is-open');
+    navWrapper?.classList.remove('active');
+  }
+  window.toggleMenu = () => navWrapper.classList.toggle('active');
+
+  function initMegaMenu() {
+    if (!infoDropdown) return;
+    infoDropdown.addEventListener('mouseenter', () => isDesktop() && infoDropdown.classList.add('is-open'));
+    infoDropdown.addEventListener('mouseleave', () => isDesktop() && infoDropdown.classList.remove('is-open'));
+
+    $('#infoDropdownBtn')?.addEventListener('click', e => {
+      e.stopPropagation();
+      // Desktop: dibuka via hover (hindari bentrok hover + klik). Mobile: toggle.
+      if (!isDesktop()) infoDropdown.classList.toggle('is-open');
     });
 
-    // Simpan status halaman ke URL Hash browser agar bertahan saat di-refresh
-    if (updateUrl) {
-        const targetHash = (pageId === 'main-view') ? '#home' : '#' + pageId;
-        if (window.location.hash !== targetHash) {
-            window.history.pushState({ pageId: pageId }, '', targetHash);
-        }
-    }
-
-    if (scrollToTop) {
-        window.scrollTo(0, 0);
-    }
-    
-    const navWrapper = document.getElementById("nav-wrapper") || document.getElementById("nav-menu");
-    if (navWrapper) navWrapper.classList.remove("active");
-}
-
-function showHome(updateUrl = true, scrollToTop = true) {
-    showPage('main-view', false, scrollToTop);
-    if (updateUrl && window.location.hash !== '#home' && window.location.hash !== '') {
-        window.history.pushState({ pageId: 'main-view' }, '', '#home');
-    }
-}
-
-function navigateToSection(sectionId) {
-    if (typeof closeMegaMenu === "function") closeMegaMenu();
-    showHome(false, false);
-    
-    if (window.location.hash !== '#' + sectionId) {
-        window.history.pushState({ sectionId: sectionId }, '', '#' + sectionId);
-    }
-    
-    const targetEl = document.getElementById(sectionId);
-    if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth' });
-    }
-    
-    const navWrapper = document.getElementById("nav-wrapper") || document.getElementById("nav-menu");
-    if (navWrapper) navWrapper.classList.remove("active");
-}
-
-function handleRouting(scrollToTop = false) {
-    // Ambil hash dari URL (misal: #day1-page atau #events)
-    let currentHash = window.location.hash.replace('#', '');
-    
-    if (SUB_PAGES.includes(currentHash)) {
-        // Jika hash adalah sub-halaman (Day 1, Tourist, dll), tampilkan halaman tersebut
-        showPage(currentHash, false, scrollToTop);
-    } else {
-        // Jika kosong, #home, atau nama section di halaman utama
-        showHome(false, false);
-        if (currentHash && currentHash !== 'home' && currentHash !== 'main-view') {
-            const targetEl = document.getElementById(currentHash);
-            if (targetEl) {
-                setTimeout(() => {
-                    targetEl.scrollIntoView({ behavior: 'smooth' });
-                }, 100);
-            }
-        }
-    }
-}
-
-// Jalankan saat halaman pertama kali dibuka atau di-REFRESH
-window.addEventListener('DOMContentLoaded', () => {
-    handleRouting(false);
-    if (typeof initMegaMenuEvents === 'function') initMegaMenuEvents();
-    if (typeof initSliderDots === 'function') initSliderDots();
-});
-
-// Jalankan saat tombol BACK atau NEXT di browser ditekan
-window.addEventListener('popstate', () => {
-    handleRouting(false);
-});
-    function initRouting() {
-        let pageToLoad = typeof INITIAL_PAGE !== 'undefined' ? INITIAL_PAGE : 'home';
-
-        if (typeof google !== 'undefined' && google.script && google.script.url) {
-            google.script.url.getLocation(function(location) {
-                let p = (location.parameter && location.parameter.page) ? location.parameter.page : location.hash;
-                if (p) {
-                    renderPageFromParam(p);
-                } else {
-                    renderPageFromParam(pageToLoad);
-                }
-            });
-        } else {
-            renderPageFromParam(pageToLoad);
-        }
-
-        if (typeof google !== 'undefined' && google.script && google.script.history) {
-            google.script.history.setChangeHandler(function(e) {
-                let paramPage = (e.location && e.location.parameter) ? e.location.parameter.page : null;
-                let hashPage = (e.location) ? e.location.hash : null;
-                let targetPage = paramPage || hashPage || 'home';
-                renderPageFromParam(targetPage);
-            });
-        }
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-        initRouting();
-        initMegaMenuEvents();
-        initSliderDots();
+    document.addEventListener('click', e => {
+      if (!infoDropdown.contains(e.target)) infoDropdown.classList.remove('is-open');
     });
+    $$('.mega-menu-card', infoDropdown).forEach(c => c.addEventListener('click', closeMenus));
+  }
 
-    /* --- MEGA MENU LOGIC --- */
+  /* ================= ACCORDION ================= */
+  window.toggleInfo = function (el) {
+    const card = el.closest('.info-card');
+    if (!card) return;
+    const wasOpen = card.classList.contains('open');
+    $$('.info-card.open', card.parentElement).forEach(c => c.classList.remove('open'));
+    if (!wasOpen) card.classList.add('open');
+  };
 
-    const infoDropdown = document.getElementById('infoDropdown');
+  /* ================= MODAL ================= */
+  const modal = $('#destModal');
 
-    function closeMegaMenu() {
-        if (infoDropdown) {
-            infoDropdown.classList.remove('is-open');
-        }
+  window.openDestModal = function (id) {
+    const tpl = document.getElementById(id + '-data');
+    if (!tpl) return;
+    const get = key => tpl.content.querySelector(`[data-${key}]`)?.getAttribute(`data-${key}`) || '';
+
+    $('#modalTitle').textContent = get('title');
+    $('#modalImg').src = get('img');
+    $('#modalDesc').textContent = get('desc');
+    $('#modalInfo').innerHTML = get('info');
+    applyLang($('#modalInfo'));
+    $('#modalMaps').href = get('maps');
+
+    const phone = get('phone').trim();
+    const phoneBtn = $('#modalPhone');
+    phoneBtn.style.display = phone ? 'inline-flex' : 'none';
+    if (phone) phoneBtn.href = 'tel:' + phone;
+
+    modal.classList.add('active');
+    document.body.classList.add('no-scroll');
+  };
+
+  window.closeDestModal = function () {
+    modal.classList.remove('active');
+    document.body.classList.remove('no-scroll');
+  };
+
+  modal.addEventListener('click', e => { if (e.target === modal) closeDestModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDestModal(); });
+
+  /* ================= SLIDER ================= */
+  const track     = $('#touristSliderTrack');
+  const sliderBox = $('#sliderContainer');
+  const dotsBox   = $('#sliderDots');
+  const GAP = 20;
+  let idx = 0;
+
+  const perView = () => window.innerWidth > 992 ? 3 : 1;
+  const maxIdx  = () => Math.max(0, track.children.length - perView());
+
+  function renderDots() {
+    dotsBox.innerHTML = '';
+    for (let i = 0; i <= maxIdx(); i++) {
+      const d = document.createElement('div');
+      d.className = 'slider-dot';
+      d.addEventListener('click', () => goSlide(i));
+      dotsBox.appendChild(d);
     }
+  }
 
-    function openMegaMenu() {
-        if (infoDropdown) {
-            infoDropdown.classList.add('is-open');
-        }
-    }
+  function goSlide(i) {
+    const max = maxIdx();
+    idx = i > max ? 0 : i < 0 ? max : i;
+    const step = track.children[0].getBoundingClientRect().width + GAP;
+    track.style.transform = `translateX(${-idx * step}px)`;
+    $$('.slider-dot', dotsBox).forEach((d, n) => d.classList.toggle('active', n === idx));
+  }
 
-    function initMegaMenuEvents() {
-        if (!infoDropdown) return;
+  window.slideNext = () => goSlide(idx + 1);
+  window.slidePrev = () => goSlide(idx - 1);
 
-        infoDropdown.addEventListener('mouseenter', () => {
-            if (window.innerWidth > 1200) {
-                openMegaMenu();
-            }
-        });
+  function initSlider() {
+    if (!track || !sliderBox) return;
+    renderDots();
+    goSlide(0);
 
-        infoDropdown.addEventListener('mouseleave', () => {
-            if (window.innerWidth > 1200) {
-                closeMegaMenu();
-            }
-        });
-
-        const dropdownBtn = document.getElementById('infoDropdownBtn');
-        if (dropdownBtn) {
-            dropdownBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                infoDropdown.classList.toggle('is-open');
-            });
-        }
-
-        document.addEventListener('click', (e) => {
-            if (!infoDropdown.contains(e.target)) {
-                closeMegaMenu();
-            }
-        });
-        
-        const megaMenuLinks = infoDropdown.querySelectorAll('.mega-menu-card');
-        megaMenuLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                closeMegaMenu();
-                document.getElementById("nav-wrapper").classList.remove("active");
-            });
-        });
-    }
-
-    /* --- INTERACTIONS --- */
-
-    function toggleMenu() {
-        document.getElementById("nav-wrapper").classList.toggle("active");
-    }
-
-    function setLanguage(lang) {
-        document.getElementById('btn-en').classList.remove('active');
-        document.getElementById('btn-id').classList.remove('active');
-        if(document.getElementById('btn-' + lang)) {
-            document.getElementById('btn-' + lang).classList.add('active');
-        }
-
-        document.getElementById('mob-btn-en').classList.remove('active');
-        document.getElementById('mob-btn-id').classList.remove('active');
-        if(document.getElementById('mob-btn-' + lang)) {
-            document.getElementById('mob-btn-' + lang).classList.add('active');
-        }
-
-        const elements = document.querySelectorAll('.lang');
-        elements.forEach(el => {
-            if (lang === 'en') {
-                if (el.getAttribute('data-en')) el.innerHTML = el.getAttribute('data-en');
-            } else if (lang === 'id') {
-                if (el.getAttribute('data-id')) el.innerHTML = el.getAttribute('data-id');
-            }
-        });
-    }
-
-    function toggleInfo(element) {
-        let parent = element.parentElement;
-        let allCards = parent.querySelectorAll('.info-card');
-
-        allCards.forEach(card => {
-            if (card !== element) {
-                card.classList.remove('open');
-                card.querySelector('.bento-content').style.display = "none";
-            }
-        });
-
-        let content = element.querySelector('.bento-content');
-        element.classList.toggle('open');
-        
-        if (content.style.display === "block") {
-            content.style.display = "none";
-        } else {
-            content.style.display = "block";
-        }
-    }
-
-    /* Modal Overlay Logic */
-    function openDestModal(destId) {
-        const template = document.getElementById(destId + '-data');
-        if (!template) return;
-
-        const content = template.content;
-        const title = content.querySelector('[data-title]').getAttribute('data-title');
-        const img = content.querySelector('[data-img]').getAttribute('data-img');
-        const desc = content.querySelector('[data-desc]').getAttribute('data-desc');
-        const info = content.querySelector('[data-info]').getAttribute('data-info');
-        const maps = content.querySelector('[data-maps]').getAttribute('data-maps');
-        
-        const phoneEl = content.querySelector('[data-phone]');
-        const phone = phoneEl ? phoneEl.getAttribute('data-phone') : '';
-
-        document.getElementById('modalTitle').innerText = title;
-        document.getElementById('modalImg').src = img;
-        document.getElementById('modalDesc').innerText = desc;
-        document.getElementById('modalInfo').innerHTML = info;
-        document.getElementById('modalMaps').href = maps;
-
-        const phoneBtn = document.getElementById('modalPhone');
-        if (phone && phone.trim() !== '') {
-            phoneBtn.href = 'tel:' + phone.trim();
-            phoneBtn.style.display = 'inline-flex';
-        } else {
-            phoneBtn.style.display = 'none';
-        }
-
-        document.getElementById('destModal').classList.add('active');
-    }
-
-    function closeDestModal() {
-        document.getElementById('destModal').classList.remove('active');
-    }
-
-    document.getElementById('destModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeDestModal();
-        }
+    // Swipe / drag (pointer events: mouse + touch, tanpa bug nilai X lama)
+    let startX = null;
+    sliderBox.addEventListener('pointerdown', e => { startX = e.clientX; });
+    sliderBox.addEventListener('pointerup', e => {
+      if (startX === null) return;
+      const diff = startX - e.clientX;
+      startX = null;
+      if (Math.abs(diff) > 50) diff > 0 ? slideNext() : slidePrev();
     });
+    ['pointercancel', 'pointerleave'].forEach(ev =>
+      sliderBox.addEventListener(ev, () => { startX = null; }));
 
-    /* Slider Logic dengan Eksak 4 Dots Pagination */
-    let currentSlideIndex = 0;
-    
-    function initSliderDots() {
-        const dotsContainer = document.getElementById('sliderDots');
-        if(!dotsContainer) return;
-        
-        // Buat tepat 4 Dots sesuai jumlah card wisata
-        dotsContainer.innerHTML = '';
-        for(let i = 0; i < 4; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'slider-dot' + (i === currentSlideIndex ? ' active' : '');
-            dot.onclick = () => { 
-                currentSlideIndex = i; 
-                updateSliderPosition(); 
-            };
-            dotsContainer.appendChild(dot);
-        }
-    }
-    
-    function slideNext() {
-        currentSlideIndex++;
-        if (currentSlideIndex > 3) {
-            currentSlideIndex = 0;
-        }
-        updateSliderPosition();
-    }
+    window.addEventListener('resize', () => { renderDots(); goSlide(Math.min(idx, maxIdx())); });
+  }
 
-    function slidePrev() {
-        currentSlideIndex--;
-        if (currentSlideIndex < 0) {
-            currentSlideIndex = 3;
-        }
-        updateSliderPosition();
-    }
+  /* ================= SCROLL EFFECTS ================= */
+  function initScrollEffects() {
+    const io = new IntersectionObserver((entries, obs) => {
+      entries.forEach(en => {
+        if (en.isIntersecting) { en.target.classList.add('visible'); obs.unobserve(en.target); }
+      });
+    }, { threshold: 0.15 });
+    $$('.animate-on-scroll').forEach(el => io.observe(el));
 
-    function updateSliderPosition() {
-        const track = document.getElementById('touristSliderTrack');
-        const cards = track.children;
-        if (cards.length === 0) return;
-        const cardWidth = cards[0].getBoundingClientRect().width;
-        const gap = 20;
-        const moveAmount = currentSlideIndex * (cardWidth + gap);
-        track.style.transform = `translateX(-${moveAmount}px)`;
-        
-        const dots = document.querySelectorAll('.slider-dots-container .slider-dot');
-        dots.forEach((dot, index) => {
-            if(index === currentSlideIndex) {
-                dot.classList.add('active');
-            } else {
-                dot.classList.remove('active');
-            }
-        });
-    }
+    const topBtn = $('#scrollToTopBtn');
+    window.addEventListener('scroll', () => topBtn.classList.toggle('show', window.scrollY > 300), { passive: true });
+  }
+  window.scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    window.addEventListener('resize', () => {
-        updateSliderPosition();
-    });
-
-    // Touch & Swipe Logic
-    const sliderContainer = document.getElementById('sliderContainer');
-    let startX = 0;
-    let currentX = 0;
-    let isDragging = false;
-    let threshold = 50;
-
-    sliderContainer.addEventListener('touchstart', (e) => {
-        startX = e.touches[0].clientX;
-        isDragging = true;
-    }, {passive: true});
-
-    sliderContainer.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        currentX = e.touches[0].clientX;
-    }, {passive: true});
-
-    sliderContainer.addEventListener('touchend', () => {
-        if (!isDragging) return;
-        handleSwipeGesture();
-        isDragging = false;
-    });
-
-    sliderContainer.addEventListener('mousedown', (e) => {
-        startX = e.clientX;
-        isDragging = true;
-        e.preventDefault();
-    });
-
-    sliderContainer.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        currentX = e.clientX;
-    });
-
-    sliderContainer.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-        handleSwipeGesture();
-        isDragging = false;
-    });
-
-    sliderContainer.addEventListener('mouseleave', () => {
-        if (isDragging) {
-            isDragging = false;
-        }
-    });
-
-    function handleSwipeGesture() {
-        let diffX = startX - currentX;
-        if (Math.abs(diffX) > threshold) {
-            if (diffX > 0) {
-                slideNext();
-            } else {
-                slidePrev();
-            }
-        }
-    }
-
-    // Scroll Observer
-    const observerOptions = { root: null, rootMargin: '0px', threshold: 0.15 };
-    const observer = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('visible');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, observerOptions);
-
-    document.querySelectorAll('.animate-on-scroll').forEach((el) => {
-        observer.observe(el);
-    });
-
-    const scrollTopBtn = document.getElementById("scrollToTopBtn");
-    window.addEventListener("scroll", function() {
-        if (window.scrollY > 300) {
-            scrollTopBtn.classList.add("show");
-        } else {
-            scrollTopBtn.classList.remove("show");
-        }
-    });
-
-    function scrollToTop() {
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-        });
-    }
+  /* ================= INIT ================= */
+  document.addEventListener('DOMContentLoaded', () => {
+    let saved = 'en';
+    try { saved = localStorage.getItem('lang') || 'en'; } catch (_) {}
+    setLanguage(saved);
+    initMegaMenu();
+    initSlider();
+    initScrollEffects();
+    route();
+  });
+})();
 </script>
 </body>
 </html>
