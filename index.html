@@ -2654,68 +2654,100 @@
         'tourist-gift-page'
     ];
 
-    /* --- ROUTING & PAGE NAVIGATION --- */
+   /* --- ROUTING & PAGE NAVIGATION UNTUK GITHUB PAGES --- */
+const SUB_PAGES = [
+    'day1-page',
+    'day2-page',
+    'day3-page',
+    'tourist-dest-page',
+    'tourist-culinary-page',
+    'tourist-spa-page',
+    'tourist-gift-page'
+];
 
-    function showPage(pageId, pushState = true) {
-        closeMegaMenu();
-        const allPages = ['main-view', ...SUB_PAGES];
-
-        allPages.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.style.display = (id === pageId) ? 'block' : 'none';
-            }
-        });
-
-        if (pushState && typeof google !== 'undefined' && google.script && google.script.history) {
-            google.script.history.push({ pageId: pageId }, { page: pageId }, pageId);
+function showPage(pageId, updateUrl = true, scrollToTop = true) {
+    if (typeof closeMegaMenu === "function") closeMegaMenu();
+    
+    const allPages = ['main-view', ...SUB_PAGES];
+    allPages.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = (id === pageId) ? 'block' : 'none';
         }
+    });
 
+    // Simpan status halaman ke URL Hash browser agar bertahan saat di-refresh
+    if (updateUrl) {
+        const targetHash = (pageId === 'main-view') ? '#home' : '#' + pageId;
+        if (window.location.hash !== targetHash) {
+            window.history.pushState({ pageId: pageId }, '', targetHash);
+        }
+    }
+
+    if (scrollToTop) {
         window.scrollTo(0, 0);
-        const navWrapper = document.getElementById("nav-wrapper");
-        if (navWrapper) navWrapper.classList.remove("active");
     }
+    
+    const navWrapper = document.getElementById("nav-wrapper") || document.getElementById("nav-menu");
+    if (navWrapper) navWrapper.classList.remove("active");
+}
 
-    function showHome(pushState = true) {
-        showPage('main-view', false);
-        if (pushState && typeof google !== 'undefined' && google.script && google.script.history) {
-            google.script.history.push({ pageId: 'main-view' }, { page: 'home' }, 'home');
-        }
+function showHome(updateUrl = true, scrollToTop = true) {
+    showPage('main-view', false, scrollToTop);
+    if (updateUrl && window.location.hash !== '#home' && window.location.hash !== '') {
+        window.history.pushState({ pageId: 'main-view' }, '', '#home');
     }
+}
 
-    function navigateToSection(sectionId) {
-        closeMegaMenu();
-        showHome(false);
-        if (typeof google !== 'undefined' && google.script && google.script.history) {
-            google.script.history.push({ sectionId: sectionId }, { page: sectionId }, sectionId);
-        }
-        const targetEl = document.getElementById(sectionId);
-        if (targetEl) {
-            targetEl.scrollIntoView({ behavior: 'smooth' });
-        }
-        const navWrapper = document.getElementById("nav-wrapper");
-        if (navWrapper) navWrapper.classList.remove("active");
+function navigateToSection(sectionId) {
+    if (typeof closeMegaMenu === "function") closeMegaMenu();
+    showHome(false, false);
+    
+    if (window.location.hash !== '#' + sectionId) {
+        window.history.pushState({ sectionId: sectionId }, '', '#' + sectionId);
     }
+    
+    const targetEl = document.getElementById(sectionId);
+    if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    const navWrapper = document.getElementById("nav-wrapper") || document.getElementById("nav-menu");
+    if (navWrapper) navWrapper.classList.remove("active");
+}
 
-    function renderPageFromParam(target) {
-        if (!target) target = 'home';
-        target = target.replace('#', '');
-
-        if (SUB_PAGES.includes(target)) {
-            showPage(target, false);
-        } else {
-            showHome(false);
-            if (target && target !== 'home' && target !== 'main-view') {
-                const targetEl = document.getElementById(target);
-                if (targetEl) {
-                    setTimeout(() => {
-                        targetEl.scrollIntoView({ behavior: 'smooth' });
-                    }, 100);
-                }
+function handleRouting(scrollToTop = false) {
+    // Ambil hash dari URL (misal: #day1-page atau #events)
+    let currentHash = window.location.hash.replace('#', '');
+    
+    if (SUB_PAGES.includes(currentHash)) {
+        // Jika hash adalah sub-halaman (Day 1, Tourist, dll), tampilkan halaman tersebut
+        showPage(currentHash, false, scrollToTop);
+    } else {
+        // Jika kosong, #home, atau nama section di halaman utama
+        showHome(false, false);
+        if (currentHash && currentHash !== 'home' && currentHash !== 'main-view') {
+            const targetEl = document.getElementById(currentHash);
+            if (targetEl) {
+                setTimeout(() => {
+                    targetEl.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
             }
         }
     }
+}
 
+// Jalankan saat halaman pertama kali dibuka atau di-REFRESH
+window.addEventListener('DOMContentLoaded', () => {
+    handleRouting(false);
+    if (typeof initMegaMenuEvents === 'function') initMegaMenuEvents();
+    if (typeof initSliderDots === 'function') initSliderDots();
+});
+
+// Jalankan saat tombol BACK atau NEXT di browser ditekan
+window.addEventListener('popstate', () => {
+    handleRouting(false);
+});
     function initRouting() {
         let pageToLoad = typeof INITIAL_PAGE !== 'undefined' ? INITIAL_PAGE : 'home';
 
